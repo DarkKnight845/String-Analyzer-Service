@@ -74,10 +74,11 @@ def count_words(text: str) -> int:
 
 
 def character_frequency(text: str) -> Dict[str, int]:
-    """Create character frequency map."""
+    """Create character frequency map (excluding whitespace)."""
     freq_map = {}
     for char in text:
-        freq_map[char] = freq_map.get(char, 0) + 1
+        if not char.isspace():  # Skip whitespace characters
+            freq_map[char] = freq_map.get(char, 0) + 1
     return freq_map
 
 
@@ -203,19 +204,6 @@ async def create_string(input_data: StringInput):
         raise HTTPException(status_code=400, detail=f"Bad request: {str(e)}")
 
 
-@app.get("/strings/{string_value}", response_model=StringResponse)
-async def get_string(string_value: str = Path(...)):
-    """Get a specific string by its value."""
-    sha256_hash = compute_sha256(string_value)
-
-    if sha256_hash not in string_storage:
-        raise HTTPException(
-            status_code=404, detail="String does not exist in the system"
-        )
-
-    return string_storage[sha256_hash]
-
-
 @app.get("/strings", response_model=StringListResponse)
 async def get_all_strings(
     is_palindrome: Optional[bool] = Query(None),
@@ -293,6 +281,19 @@ async def filter_by_natural_language(query: str = Query(..., min_length=1)):
         )
 
 
+@app.get("/strings/{string_value}", response_model=StringResponse)
+async def get_string(string_value: str = Path(...)):
+    """Get a specific string by its value."""
+    sha256_hash = compute_sha256(string_value)
+
+    if sha256_hash not in string_storage:
+        raise HTTPException(
+            status_code=404, detail="String does not exist in the system"
+        )
+
+    return string_storage[sha256_hash]
+
+
 @app.delete("/strings/{string_value}", status_code=204)
 async def delete_string(string_value: str = Path(...)):
     """Delete a specific string."""
@@ -305,19 +306,3 @@ async def delete_string(string_value: str = Path(...)):
 
     del string_storage[sha256_hash]
     return None
-
-
-@app.get("/")
-async def root():
-    """Root endpoint with API information."""
-    return {
-        "service": "String Analyzer Service",
-        "version": "1.0.0",
-        "endpoints": {
-            "POST /strings": "Create and analyze a new string",
-            "GET /strings/{string_value}": "Get a specific string",
-            "GET /strings": "Get all strings with optional filters",
-            "GET /strings/filter-by-natural-language": "Filter strings using natural language",
-            "DELETE /strings/{string_value}": "Delete a specific string",
-        },
-    }
